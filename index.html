@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта локаций</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-map"></i> Редактор карты локаций</h1>
+            <div class="controls">
+                <button id="resetView" title="Сбросить вид"><i class="fas fa-crosshairs"></i> Сбросить вид</button>
+                <button id="clearAll" title="Удалить все локации"><i class="fas fa-trash"></i> Очистить карту</button>
+                <div class="info">
+                    <span id="locationCount">Локаций: 0</span>
+                    <span id="zoomLevel">Масштаб: 100%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <p><i class="fas fa-mouse-pointer"></i> <strong>ЛКМ по пустому месту</strong> - перетаскивание карты</p>
+            <p><i class="fas fa-mouse-pointer"></i> <strong>ЛКМ по локации</strong> - перетаскивание локации</p>
+            <p><i class="fas fa-mouse-pointer"></i> <strong>ПКМ по пустому месту</strong> - создать локацию</p>
+            <p><i class="fas fa-mouse-pointer"></i> <strong>ПКМ по локации</strong> - меню редактирования</p>
+            <p><i class="fas fa-mouse-wheel"></i> <strong>Колесико мыши</strong> - изменение масштаба</p>
+        </div>
+        
+        <div class="map-container">
+            <div class="grid-overlay"></div>
+            <canvas id="mapCanvas"></canvas>
+            <div class="location-menu" id="locationMenu">
+                <button class="menu-item" id="editNameBtn"><i class="fas fa-font"></i> Редактировать название</button>
+                <button class="menu-item" id="editNoteBtn"><i class="fas fa-sticky-note"></i> Редактировать заметку</button>
+                <button class="menu-item" id="deleteLocationBtn"><i class="fas fa-times"></i> Удалить локацию</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Карта 6×10 | Перетаскивайте локации для создания связей</p>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h3><i class="fas fa-edit"></i> <span id="modalTitle">Редактирование</span></h3>
+            <div class="modal-body">
+                <div id="nameEdit" class="edit-section">
+                    <label for="locationName">Название локации:</label>
+                    <input type="text" id="locationName" placeholder="Введите название">
+                </div>
+                <div id="noteEdit" class="edit-section">
+                    <label for="locationNote">Заметка:</label>
+                    <textarea id="locationNote" placeholder="Введите заметку..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveEditBtn"><i class="fas fa-save"></i> Сохранить</button>
+                <button id="cancelEditBtn"><i class="fas fa-times"></i> Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,81 +1,100 @@
 // Основные переменные
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
-const gridOverlay = document.querySelector('.grid-overlay');
+const gridOverlay = document.getElementById('gridOverlay');
 const locationMenu = document.getElementById('locationMenu');
-const editModal = document.getElementById('editModal');
+const tooltip = document.getElementById('tooltip');
+const locationModal = document.getElementById('locationModal');
+const transitionModal = document.getElementById('transitionModal');
+const locationsList = document.getElementById('locationsList');
+const currentLocationName = document.getElementById('currentLocationName');
+const currentLocationInfo = document.getElementById('currentLocationInfo');
+
+// Элементы управления
+const createLocationBtn = document.getElementById('createLocationBtn');
+const backToMainBtn = document.getElementById('backToMainBtn');
+const saveLocationBtn = document.getElementById('saveLocationBtn');
+const cancelLocationBtn = document.getElementById('cancelLocationBtn');
+const saveTransitionBtn = document.getElementById('saveTransitionBtn');
+const cancelTransitionBtn = document.getElementById('cancelTransitionBtn');
+
+// Элементы форм
+const newLocationName = document.getElementById('newLocationName');
+const newLocationDescription = document.getElementById('newLocationDescription');
+const gridRows = document.getElementById('gridRows');
+const gridCols = document.getElementById('gridCols');
+const transitionName = document.getElementById('transitionName');
+const targetLocationSelect = document.getElementById('targetLocation');
+const transitionNote = document.getElementById('transitionNote');
+
+// Меню переходов
 const editNameBtn = document.getElementById('editNameBtn');
 const editNoteBtn = document.getElementById('editNoteBtn');
+const goToLocationBtn = document.getElementById('goToLocationBtn');
 const deleteLocationBtn = document.getElementById('deleteLocationBtn');
-const saveEditBtn = document.getElementById('saveEditBtn');
-const cancelEditBtn = document.getElementById('cancelEditBtn');
-const locationNameInput = document.getElementById('locationName');
-const locationNoteInput = document.getElementById('locationNote');
-const resetViewBtn = document.getElementById('resetView');
-const clearAllBtn = document.getElementById('clearAll');
-const locationCountElement = document.getElementById('locationCount');
-const zoomLevelElement = document.getElementById('zoomLevel');
 
-// Параметры карты
-const ROWS = 6;
-const COLS = 10;
-const CELL_SIZE = 100;
+// Константы
+const MAIN_LOCATION_ID = 'main';
+const CELL_SIZE = 60;
 
 // Состояние приложения
 let state = {
-    locations: [],
-    connections: [],
-    selectedLocation: null,
+    currentLocationId: MAIN_LOCATION_ID,
+    locations: {
+        [MAIN_LOCATION_ID]: {
+            id: MAIN_LOCATION_ID,
+            name: 'Главная карта',
+            description: 'Основная карта локаций',
+            rows: 6,
+            cols: 10,
+            transitions: [],
+            createdAt: new Date().toISOString()
+        }
+    },
     dragging: false,
-    dragLocation: null,
+    draggingTransition: null,
     dragOffset: { x: 0, y: 0 },
     panning: false,
     panStart: { x: 0, y: 0 },
     scale: 1,
     offset: { x: 0, y: 0 },
-    editingLocation: null,
-    editMode: 'name', // 'name' или 'note'
-    nextId: 1
+    selectedTransition: null,
+    nextTransitionId: 1,
+    nextLocationId: 1
 };
 
 // Инициализация
 function init() {
     resizeCanvas();
     loadState();
-    render();
     setupEventListeners();
+    render();
     updateUI();
+    updateLocationsList();
 }
 
 // Изменение размера холста
 function resizeCanvas() {
     canvas.width = canvas.parentElement.clientWidth;
     canvas.height = canvas.parentElement.clientHeight;
+    updateGridOverlay();
 }
 
-// Загрузка состояния из localStorage
-function loadState() {
-    const saved = localStorage.getItem('mapState');
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        state.locations = parsed.locations || [];
-        state.connections = parsed.connections || [];
-        state.nextId = parsed.nextId || 1;
-        state.scale = parsed.scale || 1;
-        state.offset = parsed.offset || { x: 0, y: 0 };
-    }
-}
-
-// Сохранение состояния в localStorage
-function saveState() {
-    const toSave = {
-        locations: state.locations,
-        connections: state.connections,
-        nextId: state.nextId,
-        scale: state.scale,
-        offset: state.offset
-    };
-    localStorage.setItem('mapState', JSON.stringify(toSave));
+// Обновление сетки
+function updateGridOverlay() {
+    const location = state.locations[state.currentLocationId];
+    if (!location) return;
+    
+    const gridWidth = location.cols * CELL_SIZE;
+    const gridHeight = location.rows * CELL_SIZE;
+    
+    gridOverlay.style.backgroundImage = `
+        linear-gradient(rgba(79, 111, 158, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79, 111, 158, 0.3) 1px, transparent 1px)
+    `;
+    gridOverlay.style.backgroundSize = `${CELL_SIZE}px ${CELL_SIZE}px`;
+    gridOverlay.style.width = `${gridWidth}px`;
+    gridOverlay.style.height = `${gridHeight}px`;
 }
 
 // Настройка обработчиков событий
@@ -89,18 +108,24 @@ function setupEventListeners() {
     canvas.addEventListener('wheel', handleWheel);
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     
-    // События меню локации
-    editNameBtn.addEventListener('click', () => openEditModal('name'));
-    editNoteBtn.addEventListener('click', () => openEditModal('note'));
-    deleteLocationBtn.addEventListener('click', deleteSelectedLocation);
-    
-    // События модального окна
-    saveEditBtn.addEventListener('click', saveEdit);
-    cancelEditBtn.addEventListener('click', closeEditModal);
+    // События для подсказок
+    canvas.addEventListener('mousemove', handleTooltip);
     
     // Кнопки управления
-    resetViewBtn.addEventListener('click', resetView);
-    clearAllBtn.addEventListener('click', clearAll);
+    createLocationBtn.addEventListener('click', openLocationModal);
+    backToMainBtn.addEventListener('click', () => switchLocation(MAIN_LOCATION_ID));
+    
+    // Модальные окна
+    saveLocationBtn.addEventListener('click', saveLocation);
+    cancelLocationBtn.addEventListener('click', closeLocationModal);
+    saveTransitionBtn.addEventListener('click', saveTransition);
+    cancelTransitionBtn.addEventListener('click', closeTransitionModal);
+    
+    // Меню переходов
+    editNameBtn.addEventListener('click', () => openTransitionModal('name'));
+    editNoteBtn.addEventListener('click', () => openTransitionModal('note'));
+    goToLocationBtn.addEventListener('click', goToTargetLocation);
+    deleteLocationBtn.addEventListener('click', deleteTransition);
     
     // Закрытие меню при клике вне его
     document.addEventListener('click', (e) => {
@@ -109,18 +134,21 @@ function setupEventListeners() {
         }
     });
     
-    // Закрытие модального окна при клике вне его
-    editModal.addEventListener('click', (e) => {
-        if (e.target === editModal) {
-            closeEditModal();
-        }
+    // Закрытие модальных окон при клике вне их
+    locationModal.addEventListener('click', (e) => {
+        if (e.target === locationModal) closeLocationModal();
+    });
+    
+    transitionModal.addEventListener('click', (e) => {
+        if (e.target === transitionModal) closeTransitionModal();
     });
     
     // Закрытие по Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             hideLocationMenu();
-            closeEditModal();
+            closeLocationModal();
+            closeTransitionModal();
         }
     });
 }
@@ -131,19 +159,19 @@ function handleMouseDown(e) {
     const x = (e.clientX - rect.left - state.offset.x) / state.scale;
     const y = (e.clientY - rect.top - state.offset.y) / state.scale;
     
-    // Проверяем, попали ли в существующую локацию
-    const location = findLocationAt(x, y);
+    // Проверяем, попали ли в переход
+    const transition = findTransitionAt(x, y);
     
     if (e.button === 0) { // ЛКМ
-        if (location) {
-            // Начало перетаскивания локации
+        if (transition) {
+            // Начало перетаскивания перехода
             state.dragging = true;
-            state.dragLocation = location;
+            state.draggingTransition = transition;
             state.dragOffset = {
-                x: x - location.x,
-                y: y - location.y
+                x: x - transition.x,
+                y: y - transition.y
             };
-            state.selectedLocation = location;
+            state.selectedTransition = transition;
             canvas.style.cursor = 'grabbing';
         } else {
             // Начало панорамирования карты
@@ -154,36 +182,49 @@ function handleMouseDown(e) {
     } else if (e.button === 2) { // ПКМ
         e.preventDefault();
         
-        if (location) {
-            // Показ меню для существующей локации
-            state.selectedLocation = location;
+        if (transition) {
+            // Показ меню для перехода
+            state.selectedTransition = transition;
             showLocationMenu(e.clientX, e.clientY);
         } else {
-            // Создание новой локации
+            // Создание нового перехода
+            const location = state.locations[state.currentLocationId];
+            if (!location) return;
+            
             const gridX = Math.round(x / CELL_SIZE) * CELL_SIZE;
             const gridY = Math.round(y / CELL_SIZE) * CELL_SIZE;
             
+            // Проверяем границы сетки
+            if (gridX < 0 || gridX >= location.cols * CELL_SIZE ||
+                gridY < 0 || gridY >= location.rows * CELL_SIZE) {
+                return;
+            }
+            
             // Проверяем, не занята ли клетка
-            const existing = state.locations.find(loc => 
-                Math.abs(loc.x - gridX) < CELL_SIZE/2 && 
-                Math.abs(loc.y - gridY) < CELL_SIZE/2
+            const existing = location.transitions.find(t => 
+                Math.abs(t.x - gridX) < CELL_SIZE/2 && 
+                Math.abs(t.y - gridY) < CELL_SIZE/2
             );
             
             if (!existing) {
-                const newLocation = {
-                    id: state.nextId++,
+                const newTransition = {
+                    id: state.nextTransitionId++,
                     x: gridX,
                     y: gridY,
-                    name: `Локация ${state.nextId - 1}`,
+                    name: `Переход ${state.nextTransitionId - 1}`,
+                    targetLocationId: '',
                     note: '',
-                    color: getRandomColor()
+                    createdAt: new Date().toISOString()
                 };
                 
-                state.locations.push(newLocation);
-                state.selectedLocation = newLocation;
+                location.transitions.push(newTransition);
+                state.selectedTransition = newTransition;
                 saveState();
                 render();
                 updateUI();
+                
+                // Показываем меню для настройки перехода
+                showLocationMenu(e.clientX, e.clientY);
             }
         }
     }
@@ -195,25 +236,28 @@ function handleMouseMove(e) {
     const x = (e.clientX - rect.left - state.offset.x) / state.scale;
     const y = (e.clientY - rect.top - state.offset.y) / state.scale;
     
-    if (state.dragging && state.dragLocation) {
-        // Перетаскивание локации
+    if (state.dragging && state.draggingTransition) {
+        // Перетаскивание перехода
+        const location = state.locations[state.currentLocationId];
         const gridX = Math.round(x / CELL_SIZE) * CELL_SIZE;
         const gridY = Math.round(y / CELL_SIZE) * CELL_SIZE;
         
-        // Проверяем, не занята ли новая позиция другой локацией
-        const existing = state.locations.find(loc => 
-            loc.id !== state.dragLocation.id &&
-            Math.abs(loc.x - gridX) < CELL_SIZE/2 && 
-            Math.abs(loc.y - gridY) < CELL_SIZE/2
-        );
-        
-        if (!existing) {
-            state.dragLocation.x = gridX;
-            state.dragLocation.y = gridY;
+        // Проверяем границы сетки
+        if (gridX >= 0 && gridX < location.cols * CELL_SIZE &&
+            gridY >= 0 && gridY < location.rows * CELL_SIZE) {
             
-            // Обновляем соединения
-            updateConnections();
-            render();
+            // Проверяем, не занята ли новая позиция другим переходом
+            const existing = location.transitions.find(t => 
+                t.id !== state.draggingTransition.id &&
+                Math.abs(t.x - gridX) < CELL_SIZE/2 && 
+                Math.abs(t.y - gridY) < CELL_SIZE/2
+            );
+            
+            if (!existing) {
+                state.draggingTransition.x = gridX;
+                state.draggingTransition.y = gridY;
+                render();
+            }
         }
     } else if (state.panning) {
         // Панорамирование карты
@@ -228,21 +272,21 @@ function handleMouseMove(e) {
         saveState();
         render();
     } else {
-        // Изменение курсора при наведении на локацию
-        const location = findLocationAt(x, y);
-        canvas.style.cursor = location ? 'grab' : 'default';
+        // Изменение курсора при наведении на переход
+        const transition = findTransitionAt(x, y);
+        canvas.style.cursor = transition ? 'move' : 'default';
     }
 }
 
 // Обработка отпускания кнопки мыши
 function handleMouseUp(e) {
     if (e.button === 0) { // ЛКМ
-        if (state.dragging && state.dragLocation) {
+        if (state.dragging && state.draggingTransition) {
             saveState();
         }
         
         state.dragging = false;
-        state.dragLocation = null;
+        state.draggingTransition = null;
         state.panning = false;
         canvas.style.cursor = 'default';
     }
@@ -274,151 +318,283 @@ function handleWheel(e) {
     updateUI();
 }
 
-// Поиск локации по координатам
-function findLocationAt(x, y) {
-    for (let i = state.locations.length - 1; i >= 0; i--) {
-        const loc = state.locations[i];
-        const size = CELL_SIZE * 0.8;
+// Подсказки при наведении
+function handleTooltip(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left - state.offset.x) / state.scale;
+    const y = (e.clientY - rect.top - state.offset.y) / state.scale;
+    
+    // Проверяем, наведены ли на переход
+    const transition = findTransitionAt(x, y);
+    
+    if (transition) {
+        const targetLocation = state.locations[transition.targetLocationId];
+        const targetLocationName = targetLocation ? targetLocation.name : 'Не указана';
         
-        if (x >= loc.x - size/2 && x <= loc.x + size/2 &&
-            y >= loc.y - size/2 && y <= loc.y + size/2) {
-            return loc;
+        tooltip.innerHTML = `
+            <h4>${transition.name}</h4>
+            <p><strong>Целевая локация:</strong> ${targetLocationName}</p>
+            <p><strong>Координаты:</strong> (${Math.round(transition.x/CELL_SIZE)}, ${Math.round(transition.y/CELL_SIZE)})</p>
+            ${transition.note ? `<p><strong>Заметка:</strong> ${transition.note}</p>` : ''}
+        `;
+        
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
+        tooltip.style.display = 'block';
+    } else {
+        tooltip.style.display = 'none';
+    }
+}
+
+// Поиск перехода по координатам
+function findTransitionAt(x, y) {
+    const location = state.locations[state.currentLocationId];
+    if (!location) return null;
+    
+    for (let i = location.transitions.length - 1; i >= 0; i--) {
+        const transition = location.transitions[i];
+        const size = 24;
+        
+        if (x >= transition.x - size/2 && x <= transition.x + size/2 &&
+            y >= transition.y - size/2 && y <= transition.y + size/2) {
+            return transition;
         }
     }
     return null;
 }
 
-// Показать меню локации
+// Показать меню
 function showLocationMenu(x, y) {
     locationMenu.style.left = `${x}px`;
     locationMenu.style.top = `${y}px`;
     locationMenu.style.display = 'flex';
+    
+    // Обновляем текст кнопки "Перейти к локации"
+    const targetLocation = state.locations[state.selectedTransition.targetLocationId];
+    goToLocationBtn.disabled = !targetLocation;
+    goToLocationBtn.innerHTML = targetLocation ? 
+        `<i class="fas fa-external-link-alt"></i> Перейти к "${targetLocation.name}"` :
+        `<i class="fas fa-external-link-alt"></i> Перейти к локации`;
 }
 
-// Скрыть меню локации
+// Скрыть меню
 function hideLocationMenu() {
     locationMenu.style.display = 'none';
 }
 
-// Открыть модальное окно редактирования
-function openEditModal(mode) {
-    state.editMode = mode;
+// Открыть модальное окно локации
+function openLocationModal() {
+    newLocationName.value = '';
+    newLocationDescription.value = '';
+    gridRows.value = '6';
+    gridCols.value = '10';
+    document.getElementById('modalTitle').textContent = 'Новая локация';
+    locationModal.style.display = 'flex';
+}
+
+// Закрыть модальное окно локации
+function closeLocationModal() {
+    locationModal.style.display = 'none';
+}
+
+// Сохранить локацию
+function saveLocation() {
+    const name = newLocationName.value.trim();
+    if (!name) {
+        alert('Введите название локации');
+        return;
+    }
     
-    if (state.selectedLocation) {
-        state.editingLocation = state.selectedLocation;
-        
-        if (mode === 'name') {
-            locationNameInput.value = state.selectedLocation.name;
-            locationNoteInput.style.display = 'none';
-            document.getElementById('nameEdit').style.display = 'block';
-            document.getElementById('modalTitle').textContent = 'Редактировать название';
-        } else {
-            locationNoteInput.value = state.selectedLocation.note;
-            locationNameInput.style.display = 'none';
-            document.getElementById('nameEdit').style.display = 'none';
-            document.getElementById('modalTitle').textContent = 'Редактировать заметку';
-        }
-        
-        hideLocationMenu();
-        editModal.style.display = 'flex';
-    }
-}
-
-// Закрыть модальное окно
-function closeEditModal() {
-    editModal.style.display = 'none';
-    state.editingLocation = null;
-}
-
-// Сохранить изменения
-function saveEdit() {
-    if (state.editingLocation) {
-        if (state.editMode === 'name') {
-            state.editingLocation.name = locationNameInput.value.trim() || `Локация ${state.editingLocation.id}`;
-        } else {
-            state.editingLocation.note = locationNoteInput.value.trim();
-        }
-        
-        saveState();
-        render();
-        updateUI();
-        closeEditModal();
-    }
-}
-
-// Удалить выбранную локацию
-function deleteSelectedLocation() {
-    if (state.selectedLocation) {
-        state.locations = state.locations.filter(loc => loc.id !== state.selectedLocation.id);
-        state.connections = state.connections.filter(conn => 
-            conn.from !== state.selectedLocation.id && conn.to !== state.selectedLocation.id
-        );
-        
-        saveState();
-        render();
-        updateUI();
-        hideLocationMenu();
-    }
-}
-
-// Обновить соединения
-function updateConnections() {
-    state.connections = [];
+    const locationId = `location_${state.nextLocationId++}`;
+    const newLocation = {
+        id: locationId,
+        name: name,
+        description: newLocationDescription.value.trim(),
+        rows: parseInt(gridRows.value),
+        cols: parseInt(gridCols.value),
+        transitions: [],
+        createdAt: new Date().toISOString()
+    };
     
-    // Создаем соединения между соседними локациями
-    for (let i = 0; i < state.locations.length; i++) {
-        for (let j = i + 1; j < state.locations.length; j++) {
-            const loc1 = state.locations[i];
-            const loc2 = state.locations[j];
-            
-            // Проверяем, являются ли локации соседними по горизонтали или вертикали
-            const dx = Math.abs(loc1.x - loc2.x);
-            const dy = Math.abs(loc1.y - loc2.y);
-            
-            if ((dx === CELL_SIZE && dy === 0) || (dy === CELL_SIZE && dx === 0)) {
-                state.connections.push({
-                    from: loc1.id,
-                    to: loc2.id
-                });
-            }
-        }
-    }
+    state.locations[locationId] = newLocation;
+    saveState();
+    updateLocationsList();
+    closeLocationModal();
+    
+    // Переключаемся на новую локацию
+    switchLocation(locationId);
 }
 
-// Сбросить вид
-function resetView() {
-    state.scale = 1;
-    state.offset = { x: 0, y: 0 };
+// Открыть модальное окно перехода
+function openTransitionModal(mode) {
+    if (!state.selectedTransition) return;
+    
+    transitionName.value = state.selectedTransition.name;
+    transitionNote.value = state.selectedTransition.note || '';
+    
+    // Заполняем список локаций
+    updateTargetLocationSelect();
+    
+    if (state.selectedTransition.targetLocationId) {
+        targetLocationSelect.value = state.selectedTransition.targetLocationId;
+    }
+    
+    hideLocationMenu();
+    transitionModal.style.display = 'flex';
+}
+
+// Обновить список целевых локаций
+function updateTargetLocationSelect() {
+    targetLocationSelect.innerHTML = '<option value="">Выберите локацию</option>';
+    
+    Object.values(state.locations).forEach(location => {
+        if (location.id !== state.currentLocationId) {
+            const option = document.createElement('option');
+            option.value = location.id;
+            option.textContent = `${location.name} (${location.rows}×${location.cols})`;
+            targetLocationSelect.appendChild(option);
+        }
+    });
+}
+
+// Закрыть модальное окно перехода
+function closeTransitionModal() {
+    transitionModal.style.display = 'none';
+}
+
+// Сохранить переход
+function saveTransition() {
+    if (!state.selectedTransition) return;
+    
+    state.selectedTransition.name = transitionName.value.trim() || `Переход ${state.selectedTransition.id}`;
+    state.selectedTransition.targetLocationId = targetLocationSelect.value;
+    state.selectedTransition.note = transitionNote.value.trim();
+    
     saveState();
     render();
     updateUI();
+    closeTransitionModal();
 }
 
-// Очистить карту
-function clearAll() {
-    if (confirm('Вы уверены, что хотите удалить все локации?')) {
-        state.locations = [];
-        state.connections = [];
-        state.selectedLocation = null;
+// Перейти к целевой локации
+function goToTargetLocation() {
+    if (!state.selectedTransition || !state.selectedTransition.targetLocationId) return;
+    
+    const targetId = state.selectedTransition.targetLocationId;
+    if (state.locations[targetId]) {
+        switchLocation(targetId);
+        hideLocationMenu();
+    }
+}
+
+// Удалить переход
+function deleteTransition() {
+    if (!state.selectedTransition) return;
+    
+    const location = state.locations[state.currentLocationId];
+    if (location && confirm('Удалить этот переход?')) {
+        location.transitions = location.transitions.filter(t => t.id !== state.selectedTransition.id);
+        state.selectedTransition = null;
         saveState();
         render();
         updateUI();
+        hideLocationMenu();
     }
+}
+
+// Переключение локации
+function switchLocation(locationId) {
+    if (!state.locations[locationId]) return;
+    
+    state.currentLocationId = locationId;
+    state.scale = 1;
+    state.offset = { x: 0, y: 0 };
+    state.selectedTransition = null;
+    
+    updateGridOverlay();
+    saveState();
+    render();
+    updateUI();
+    updateLocationsList();
 }
 
 // Обновление UI
 function updateUI() {
-    locationCountElement.textContent = `Локаций: ${state.locations.length}`;
-    zoomLevelElement.textContent = `Масштаб: ${Math.round(state.scale * 100)}%`;
+    const location = state.locations[state.currentLocationId];
+    if (location) {
+        currentLocationName.textContent = location.name;
+        currentLocationInfo.textContent = location.name;
+    }
+    
+    const totalLocations = Object.keys(state.locations).length - 1; // Исключаем главную
+    document.getElementById('locationCount').textContent = `Локаций: ${totalLocations}`;
+    document.getElementById('zoomLevel').textContent = `Масштаб: ${Math.round(state.scale * 100)}%`;
 }
 
-// Генерация случайного цвета
-function getRandomColor() {
-    const colors = [
-        '#1abc9c', '#3498db', '#9b59b6', '#e74c3c', 
-        '#f39c12', '#2ecc71', '#34495e', '#d35400'
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
+// Обновление списка локаций
+function updateLocationsList() {
+    locationsList.innerHTML = '';
+    
+    // Главная карта
+    const mainCard = createLocationCard(state.locations[MAIN_LOCATION_ID]);
+    mainCard.classList.add('active');
+    locationsList.appendChild(mainCard);
+    
+    // Остальные локации
+    Object.values(state.locations)
+        .filter(loc => loc.id !== MAIN_LOCATION_ID)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .forEach(location => {
+            const card = createLocationCard(location);
+            if (location.id === state.currentLocationId) {
+                card.classList.add('active');
+            }
+            locationsList.appendChild(card);
+        });
+}
+
+// Создание карточки локации
+function createLocationCard(location) {
+    const card = document.createElement('div');
+    card.className = 'location-card';
+    card.innerHTML = `
+        <div class="location-name">${location.name}</div>
+        <div class="location-info">${location.description || 'Нет описания'}</div>
+        <div class="location-grid-size">Сетка: ${location.rows}×${location.cols}</div>
+        <div class="location-info">Переходов: ${location.transitions.length}</div>
+    `;
+    
+    card.addEventListener('click', () => switchLocation(location.id));
+    return card;
+}
+
+// Загрузка состояния
+function loadState() {
+    const saved = localStorage.getItem('mapEditorState');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        
+        // Восстанавливаем все свойства
+        Object.assign(state, parsed);
+        
+        // Убеждаемся, что главная карта всегда существует
+        if (!state.locations[MAIN_LOCATION_ID]) {
+            state.locations[MAIN_LOCATION_ID] = {
+                id: MAIN_LOCATION_ID,
+                name: 'Главная карта',
+                description: 'Основная карта локаций',
+                rows: 6,
+                cols: 10,
+                transitions: [],
+                createdAt: new Date().toISOString()
+            };
+        }
+    }
+}
+
+// Сохранение состояния
+function saveState() {
+    localStorage.setItem('mapEditorState', JSON.stringify(state));
 }
 
 // Отрисовка
@@ -429,18 +605,15 @@ function render() {
     // Сохраняем текущее состояние контекста
     ctx.save();
     
-    // Применяем трансформации (масштаб и смещение)
+    // Применяем трансформации
     ctx.translate(state.offset.x, state.offset.y);
     ctx.scale(state.scale, state.scale);
     
-    // Рисуем сетку
+    // Рисуем сетку локации
     drawGrid();
     
-    // Рисуем соединения
-    drawConnections();
-    
-    // Рисуем локации
-    drawLocations();
+    // Рисуем переходы
+    drawTransitions();
     
     // Восстанавливаем состояние контекста
     ctx.restore();
@@ -448,10 +621,18 @@ function render() {
 
 // Отрисовка сетки
 function drawGrid() {
-    const width = COLS * CELL_SIZE;
-    const height = ROWS * CELL_SIZE;
+    const location = state.locations[state.currentLocationId];
+    if (!location) return;
     
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    const width = location.cols * CELL_SIZE;
+    const height = location.rows * CELL_SIZE;
+    
+    // Рисуем фон сетки
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Рисуем линии сетки
+    ctx.strokeStyle = 'rgba(79, 111, 158, 0.5)';
     ctx.lineWidth = 1;
     
     // Вертикальные линии
@@ -471,122 +652,66 @@ function drawGrid() {
     }
     
     // Границы карты
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, width, height);
-}
-
-// Отрисовка соединений
-function drawConnections() {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = 'rgba(233, 69, 96, 0.7)';
     ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
+    ctx.strokeRect(0, 0, width, height);
     
-    for (const conn of state.connections) {
-        const fromLoc = state.locations.find(l => l.id === conn.from);
-        const toLoc = state.locations.find(l => l.id === conn.to);
-        
-        if (fromLoc && toLoc) {
-            ctx.beginPath();
-            ctx.moveTo(fromLoc.x, fromLoc.y);
-            ctx.lineTo(toLoc.x, toLoc.y);
-            ctx.stroke();
-            
-            // Стрелка на конце линии
-            drawArrow(fromLoc.x, fromLoc.y, toLoc.x, toLoc.y);
-        }
+    // Номера колонн и строк
+    ctx.fillStyle = 'rgba(160, 160, 192, 0.7)';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    
+    // Номера колонн сверху
+    for (let col = 0; col < location.cols; col++) {
+        ctx.fillText(col + 1, col * CELL_SIZE + CELL_SIZE/2, 15);
+    }
+    
+    // Номера строк слева
+    ctx.textAlign = 'right';
+    for (let row = 0; row < location.rows; row++) {
+        ctx.fillText(row + 1, -5, row * CELL_SIZE + CELL_SIZE/2 + 4);
     }
 }
 
-// Отрисовка стрелки
-function drawArrow(fromX, fromY, toX, toY) {
-    const headlen = 10;
-    const angle = Math.atan2(toY - fromY, toX - fromX);
+// Отрисовка переходов
+function drawTransitions() {
+    const location = state.locations[state.currentLocationId];
+    if (!location) return;
     
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 3;
-    
-    // Начало новой точки отсчета
-    ctx.translate(toX, toY);
-    ctx.rotate(angle - Math.PI / 2);
-    
-    // Рисуем стрелку
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-headlen, headlen * 2);
-    ctx.lineTo(headlen, headlen * 2);
-    ctx.closePath();
-    ctx.fill();
-    
-    ctx.restore();
-}
-
-// Отрисовка локаций
-function drawLocations() {
-    for (const loc of state.locations) {
-        const size = CELL_SIZE * 0.8;
-        const isSelected = state.selectedLocation && state.selectedLocation.id === loc.id;
+    location.transitions.forEach(transition => {
+        const isSelected = state.selectedTransition && state.selectedTransition.id === transition.id;
+        const hasTarget = !!transition.targetLocationId;
+        const hasNote = !!transition.note;
         
-        // Тень
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 3;
+        // Цвет перехода зависит от наличия цели
+        ctx.fillStyle = hasTarget ? '#e94560' : '#888888';
+        ctx.strokeStyle = isSelected ? '#ffffff' : '#ffffff';
+        ctx.lineWidth = isSelected ? 3 : 2;
         
-        // Тело локации
-        ctx.fillStyle = loc.color;
-        ctx.strokeStyle = isSelected ? '#ffffff' : '#16a085';
-        ctx.lineWidth = isSelected ? 4 : 3;
-        
+        // Рисуем круг перехода
         ctx.beginPath();
-        ctx.roundRect(loc.x - size/2, loc.y - size/2, size, size, 8);
+        ctx.arc(transition.x, transition.y, 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Сбрасываем тень для текста
-        ctx.shadowColor = 'transparent';
-        
-        // Название локации
+        // Иконка внутри
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px Arial';
+        ctx.font = 'bold 10px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
-        // Обрезаем текст, если он слишком длинный
-        let displayName = loc.name;
-        const maxChars = 10;
-        if (displayName.length > maxChars) {
-            displayName = displayName.substring(0, maxChars) + '...';
-        }
-        
-        ctx.fillText(displayName, loc.x, loc.y - 10);
+        ctx.fillText(hasTarget ? '→' : '?', transition.x, transition.y);
         
         // Индикатор заметки
-        if (loc.note) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = '12px Arial';
-            ctx.fillText('📝', loc.x, loc.y + 15);
+        if (hasNote) {
+            ctx.font = '8px Arial';
+            ctx.fillText('📝', transition.x + 15, transition.y - 15);
         }
-    }
-}
-
-// Добавляем поддержку roundRect для старых браузеров
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
-        if (width < 2 * radius) radius = width / 2;
-        if (height < 2 * radius) radius = height / 2;
         
-        this.beginPath();
-        this.moveTo(x + radius, y);
-        this.arcTo(x + width, y, x + width, y + height, radius);
-        this.arcTo(x + width, y + height, x, y + height, radius);
-        this.arcTo(x, y + height, x, y, radius);
-        this.arcTo(x, y, x + width, y, radius);
-        this.closePath();
-        return this;
-    }
+        // Название перехода под кругом
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '10px Arial';
+        ctx.fillText(transition.name, transition.x, transition.y + 20);
+    });
 }
 
 // Запуск приложения

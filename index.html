@@ -3,121 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактор карт локаций</title>
+    <title>Коты и просторы</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-map"></i> Редактор карт локаций</h1>
-            <div class="controls">
-                <div class="current-location">
-                    <span id="currentLocationName">Главная карта</span>
+    <div id="game-container">
+        <!-- Пустышка для будущей картинки -->
+        <div id="image-placeholder">
+            <div class="placeholder-text">🐾 Здесь будет изображение 🐾</div>
+        </div>
+
+        <!-- Экран создания персонажа -->
+        <div id="creation-screen">
+            <h2>Создание персонажа</h2>
+            
+            <div class="form-group">
+                <label for="cat-name">Имя:</label>
+                <input type="text" id="cat-name" placeholder="Введите имя" maxlength="20">
+            </div>
+
+            <div class="form-group">
+                <label>Пол:</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="gender" value="кот" checked> Кот</label>
+                    <label><input type="radio" name="gender" value="кошка"> Кошка</label>
                 </div>
-                <button id="createLocationBtn"><i class="fas fa-plus-circle"></i> Новая локация</button>
-                <button id="backToMainBtn"><i class="fas fa-home"></i> Главная карта</button>
-                <div class="info">
-                    <span id="locationCount">Локаций: 0</span>
-                    <span id="zoomLevel">Масштаб: 100%</span>
-                </div>
             </div>
+
+            <div class="form-group">
+                <label for="location-select">Место проживания:</label>
+                <select id="location-select"></select>
+                <div id="location-stats" class="stats-info"></div>
+            </div>
+
+            <h3>Окрас</h3>
+            <div id="appearance-editor"></div>
+            
+            <div class="form-group">
+                <label>Итоговая внешность:</label>
+                <div id="appearance-preview" class="preview-box"></div>
+                <button id="random-appearance" class="btn-small">🎲 Случайная внешность</button>
+            </div>
+
+            <button id="start-game" class="btn-primary">Начать игру</button>
         </div>
-        
-        <div class="instructions">
-            <div class="instruction-section">
-                <p><i class="fas fa-info-circle"></i> <strong>Текущая локация:</strong> <span id="currentLocationInfo">Главная карта</span></p>
-                <p><i class="fas fa-mouse-pointer"></i> <strong>ЛКМ по пустому месту</strong> - перетаскивание карты</p>
-                <p><i class="fas fa-mouse-pointer"></i> <strong>ЛКМ по переходу</strong> - перетаскивание перехода</p>
-            </div>
-            <div class="instruction-section">
-                <p><i class="fas fa-mouse-pointer"></i> <strong>ПКМ по пустому месту</strong> - создать переход на другую локацию</p>
-                <p><i class="fas fa-mouse-pointer"></i> <strong>ПКМ по переходу</strong> - меню редактирования</p>
-                <p><i class="fas fa-mouse-wheel"></i> <strong>Колесико мыши</strong> - изменение масштаба</p>
-            </div>
-        </div>
-        
-        <div class="map-container">
-            <div class="grid-overlay" id="gridOverlay"></div>
-            <canvas id="mapCanvas"></canvas>
-            <div class="tooltip" id="tooltip"></div>
-            <div class="location-menu" id="locationMenu">
-                <button class="menu-item" id="editNameBtn"><i class="fas fa-font"></i> Редактировать название</button>
-                <button class="menu-item" id="editNoteBtn"><i class="fas fa-sticky-note"></i> Редактировать заметку</button>
-                <button class="menu-item" id="goToLocationBtn"><i class="fas fa-external-link-alt"></i> Перейти к локации</button>
-                <button class="menu-item" id="deleteLocationBtn"><i class="fas fa-times"></i> Удалить переход</button>
-            </div>
-        </div>
-        
-        <div class="locations-panel">
-            <h3><i class="fas fa-layer-group"></i> Все локации</h3>
-            <div class="locations-list" id="locationsList">
-                <!-- Локации будут добавляться здесь -->
-            </div>
+
+        <!-- Экран игры (пустышка) -->
+        <div id="game-screen" style="display: none;">
+            <h2>Игра</h2>
+            <div id="character-summary"></div>
+            <p>Основной игровой процесс будет здесь...</p>
+            <button id="reset-character" class="btn-danger">Сбросить персонажа</button>
         </div>
     </div>
-
-    <!-- Модальное окно создания/редактирования локации -->
-    <div class="modal" id="locationModal">
-        <div class="modal-content">
-            <h3><i class="fas fa-edit"></i> <span id="modalTitle">Новая локация</span></h3>
-            <div class="modal-body">
-                <div class="edit-section">
-                    <label for="newLocationName">Название локации:</label>
-                    <input type="text" id="newLocationName" placeholder="Введите название">
-                </div>
-                <div class="edit-section">
-                    <label for="newLocationDescription">Описание:</label>
-                    <textarea id="newLocationDescription" placeholder="Введите описание..."></textarea>
-                </div>
-                <div class="edit-section">
-                    <label>Размер сетки:</label>
-                    <div class="grid-size">
-                        <div class="size-input">
-                            <label for="gridRows">Рядов:</label>
-                            <input type="number" id="gridRows" min="3" max="20" value="6">
-                        </div>
-                        <div class="size-input">
-                            <label for="gridCols">Колонн:</label>
-                            <input type="number" id="gridCols" min="3" max="20" value="10">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="saveLocationBtn"><i class="fas fa-save"></i> Сохранить</button>
-                <button id="cancelLocationBtn"><i class="fas fa-times"></i> Отмена</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно редактирования перехода -->
-    <div class="modal" id="transitionModal">
-        <div class="modal-content">
-            <h3><i class="fas fa-exchange-alt"></i> Редактировать переход</h3>
-            <div class="modal-body">
-                <div class="edit-section">
-                    <label for="transitionName">Название перехода:</label>
-                    <input type="text" id="transitionName" placeholder="Введите название">
-                </div>
-                <div class="edit-section">
-                    <label for="targetLocation">Целевая локация:</label>
-                    <select id="targetLocation">
-                        <!-- Опции будут добавляться динамически -->
-                    </select>
-                </div>
-                <div class="edit-section">
-                    <label for="transitionNote">Заметка:</label>
-                    <textarea id="transitionNote" placeholder="Введите заметку..."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="saveTransitionBtn"><i class="fas fa-save"></i> Сохранить</button>
-                <button id="cancelTransitionBtn"><i class="fas fa-times"></i> Отмена</button>
-            </div>
-        </div>
-    </div>
-
     <script src="script.js"></script>
 </body>
 </html>

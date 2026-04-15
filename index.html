@@ -48,11 +48,55 @@
             <button id="start-game" class="btn-primary">Начать игру</button>
         </div>
 
-        <!-- Экран игры (пустышка) -->
+        <!-- Экран игры -->
         <div id="game-screen" style="display: none;">
-            <h2>Игра</h2>
+            <div class="game-header">
+                <h2>🌍 Мир котов</h2>
+                <div id="season-display" class="season-badge">🌸 Весна</div>
+            </div>
+            
             <div id="character-summary"></div>
-            <p>Основной игровой процесс будет здесь...</p>
+            
+            <!-- Параметры персонажа -->
+            <div class="stats-panel">
+                <h3>Состояние</h3>
+                <div class="stat-bar">
+                    <span class="stat-label">❤️ Здоровье</span>
+                    <div class="bar-bg"><div id="health-bar" class="bar-fill health-fill" style="width: 100%"></div></div>
+                    <span id="health-value" class="stat-value">100/100</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">⚡ Энергия</span>
+                    <div class="bar-bg"><div id="energy-bar" class="bar-fill energy-fill" style="width: 100%"></div></div>
+                    <span id="energy-value" class="stat-value">100/100</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">🍖 Голод</span>
+                    <div class="bar-bg"><div id="hunger-bar" class="bar-fill hunger-fill" style="width: 100%"></div></div>
+                    <span id="hunger-value" class="stat-value">100/100</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">💧 Жажда</span>
+                    <div class="bar-bg"><div id="thirst-bar" class="bar-fill thirst-fill" style="width: 100%"></div></div>
+                    <span id="thirst-value" class="stat-value">100/100</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">✨ Чистота</span>
+                    <div class="bar-bg"><div id="cleanliness-bar" class="bar-fill clean-fill" style="width: 100%"></div></div>
+                    <span id="cleanliness-value" class="stat-value">100/100</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">😊 Настроение</span>
+                    <div class="bar-bg"><div id="mood-bar" class="bar-fill mood-fill" style="width: 100%"></div></div>
+                    <span id="mood-value" class="stat-value">100/100</span>
+                </div>
+            </div>
+
+            <!-- Временная заглушка для действий -->
+            <div class="actions-placeholder">
+                <p>⚙️ Действия появятся позже...</p>
+            </div>
+            
             <button id="reset-character" class="btn-danger">Сбросить персонажа</button>
         </div>
     </div>
